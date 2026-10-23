@@ -21,6 +21,8 @@ MuseScore {
     version:     "2.0.0"
     pluginType:  "dock"
     dockArea:    "right"
+    width:       460
+    height:      640
 
     // -----------------------------------------------------------------------
     // Persistent settings
@@ -443,10 +445,9 @@ MuseScore {
     // UI Layout
     // -----------------------------------------------------------------------
     Rectangle {
-        id:     pluginPane
-        color:  "#1e1e2e"
-        width:  350
-        height: 600
+        id:           pluginPane
+        color:        "#1e1e2e"
+        anchors.fill: parent
 
         ColumnLayout {
             anchors.fill: parent
