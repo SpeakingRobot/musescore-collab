@@ -9,17 +9,26 @@ Pre-configured with our official cloud server at `https://musescore-collab.onren
 
 ## ⚡ 1-Click Installation
 
-Anyone can install MuseCollab in 5 seconds without manual copy-pasting:
-
-### 🪟 Windows
-1. Download or clone this repository.
-2. Double-click **`install.bat`**.
-3. Done! It automatically detects your MuseScore folder, creates it if missing, and installs the plugin.
+Anyone can install MuseCollab in seconds without manual setup:
 
 ### 🍎 macOS
-1. Download or clone this repository.
-2. Double-click **`install.command`** in Finder (or run `./install.sh`).
-3. Done! It installs directly into your Mac's MuseScore plugins directory.
+*(Works on all Intel & Apple Silicon M1/M2/M3/M4 Macs — see detailed [Mac Guide](INSTALL_MAC.md))*
+
+- **Option A (Finder 1-Click):** Double-click **`install.command`** in Finder.  
+  *(If Gatekeeper blocks it: Right-click `install.command` → **Open** → **Open**).*
+- **Option B (Terminal 1-Liner):** Open Terminal and paste:
+  ```bash
+  mkdir -p ~/Documents/MuseScore4/Plugins/MuseCollab && cp -R plugin/. ~/Documents/MuseScore4/Plugins/MuseCollab/
+  ```
+- **Option C (Manual):** Press `Cmd + Shift + G` in Finder, go to `~/Documents/MuseScore4/Plugins`, create a folder named `MuseCollab`, and copy the `plugin/` contents into it.
+
+---
+
+### 🪟 Windows
+- **1-Click:** Double-click **`install.bat`**.  
+  *(It automatically detects your MuseScore folder, creates it if missing, and installs all files).*
+
+---
 
 ### 💻 Or via Node.js / NPM (Any OS)
 ```bash
@@ -32,11 +41,20 @@ npm run install-plugin
 
 ## 🚀 Activating in MuseScore
 
+### On Mac:
 1. Open **MuseScore**.
-2. Go to: **Plugins → Manage Plugins** (or **Preferences → Plugins** on Mac).
-3. Find **MuseCollab** and tick the checkbox **[✓]**.
-4. Open the plugin from the top menu: **Plugins → MuseCollab**.  
-   *(It opens as a convenient dock on the right side of your sheet music).*
+2. From the top Mac menu bar (next to the 🍎 Apple icon):  
+   Click **Plugins → Manage Plugins…** *(or **MuseScore → Preferences… → Plugins**)*.
+3. Check the box **[✓]** next to **MuseCollab** and click **OK**.
+4. Open the plugin from: **Plugins → MuseCollab**.
+
+### On Windows:
+1. Open **MuseScore**.
+2. Go to: **Plugins → Manage Plugins** (or **Edit → Preferences → Plugins**).
+3. Check the box **[✓]** next to **MuseCollab**.
+4. Open from: **Plugins → MuseCollab**.
+
+*(The MuseCollab panel docks cleanly on the right side of your sheet music).*
 
 ---
 
