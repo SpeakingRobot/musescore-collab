@@ -455,7 +455,7 @@ Rectangle {
                     root._statusOk   = false
                     return
                 }
-                var tok = data && data.token ? data.token : ""
+                var tok = (data && data.token) || (data && data.data && data.data.token) || ""
                 if (!tok) {
                     root._loading    = false
                     root._statusText = "✗ No token returned from server."
@@ -505,7 +505,7 @@ Rectangle {
                     root._statusOk   = false
                     return
                 }
-                var tok = data && data.token ? data.token : ""
+                var tok = (data && data.token) || (data && data.data && data.data.token) || ""
                 if (!tok) {
                     root._loading    = false
                     root._statusText = "✗ No token returned from server."

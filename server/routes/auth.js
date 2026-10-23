@@ -59,6 +59,21 @@ router.post('/register', async (req, res) => {
 
     const existing = await db.getUserByUsername(username);
     if (existing) {
+      // If the password matches, allow transparent login so users aren't locked out if client retries
+      const valid = await bcrypt.compare(password, existing.password_hash);
+      if (valid) {
+        const token = jwt.sign({ userId: existing.id, username: existing.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+        return res.status(200).json({
+          success: true,
+          token,
+          userId: existing.id,
+          username: existing.username,
+          data: {
+            token,
+            user: { id: existing.id, username: existing.username, createdAt: existing.created_at },
+          },
+        });
+      }
       return res.status(409).json({ success: false, error: 'Username already taken' });
     }
 
@@ -76,6 +91,9 @@ router.post('/register', async (req, res) => {
 
     return res.status(201).json({
       success: true,
+      token,
+      userId: user.id,
+      username: user.username,
       data: {
         token,
         user: { id: user.id, username: user.username, createdAt: user.created_at },
@@ -113,6 +131,9 @@ router.post('/login', async (req, res) => {
 
     return res.json({
       success: true,
+      token,
+      userId: user.id,
+      username: user.username,
       data: {
         token,
         user: { id: user.id, username: user.username, createdAt: user.created_at },
