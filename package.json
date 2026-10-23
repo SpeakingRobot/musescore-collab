@@ -1,14 +1,24 @@
 {
   "name": "musescore-collab",
-  "version": "1.0.0",
-  "description": "Git-style collaborative version control for MuseScore",
-  "private": true,
-  "workspaces": [
-    "server"
-  ],
+  "version": "2.0.0",
+  "description": "Git-style collaborative version control and live sessions for MuseScore",
+  "bin": "./install.js",
   "scripts": {
+    "install-plugin": "node install.js",
+    "postinstall": "node install.js",
     "server": "cd server && npm start",
     "server:dev": "cd server && npm run dev",
-    "install:server": "cd server && npm install"
-  }
+    "server:install": "cd server && npm install"
+  },
+  "keywords": [
+    "musescore",
+    "musescore4",
+    "collaboration",
+    "plugin",
+    "sheet-music",
+    "music-notation",
+    "git"
+  ],
+  "author": "SpeakingRobot",
+  "license": "MIT"
 }

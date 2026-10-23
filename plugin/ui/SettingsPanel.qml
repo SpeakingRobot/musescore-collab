@@ -12,10 +12,10 @@ Rectangle {
     // -----------------------------------------------------------------------
     // Public properties
     // -----------------------------------------------------------------------
-    property string initialServerUrl: ""
-    property string initialUsername:  ""
-    property string initialProject:   ""
-    property string initialInviteCode: ""
+    property string initialServerUrl:   "https://musescore-collab.onrender.com"
+    property string initialUsername:    ""
+    property string initialProject:     ""
+    property string initialInviteCode:  ""
     property string initialDisplayName: ""
 
     // Current tab mode: "register" or "join"
@@ -51,9 +51,10 @@ Rectangle {
     // Init
     // -----------------------------------------------------------------------
     Component.onCompleted: {
-        regUrlField.text     = root.initialServerUrl
+        var defaultUrl = root.initialServerUrl || "https://musescore-collab.onrender.com"
+        regUrlField.text     = defaultUrl
         regUserField.text    = root.initialUsername
-        joinUrlField.text    = root.initialServerUrl
+        joinUrlField.text    = defaultUrl
         joinUserField.text   = root.initialUsername
         joinCodeField.text   = root.initialInviteCode
         joinNameField.text   = root.initialDisplayName
@@ -206,12 +207,12 @@ Rectangle {
                                :                  "#89b4fa"
                     }
                     onClicked: {
-                        var url  = regUrlField.text.trim()
+                        var url  = regUrlField.text.trim() || "https://musescore-collab.onrender.com"
                         var user = regUserField.text.trim()
                         var pass = regPassField.text
                         var proj = regProjectField.text.trim()
-                        if (!url || !user || !pass || !proj) {
-                            root._statusText = "Please fill in all fields."
+                        if (!user || !pass || !proj) {
+                            root._statusText = "Please fill in Username, Password, and Project Name."
                             root._statusOk   = false
                             return
                         }
@@ -381,13 +382,13 @@ Rectangle {
                                :                   "#cba6f7"
                     }
                     onClicked: {
-                        var url  = joinUrlField.text.trim()
+                        var url  = joinUrlField.text.trim() || "https://musescore-collab.onrender.com"
                         var user = joinUserField.text.trim()
                         var pass = joinPassField.text
                         var code = joinCodeField.text.trim()
                         var dname = joinNameField.text.trim()
-                        if (!url || !user || !pass || !code || !dname) {
-                            root._statusText = "Please fill in all fields including Your Name."
+                        if (!user || !pass || !code || !dname) {
+                            root._statusText = "Please fill in Your Name, Username, Password, and Invite Code."
                             root._statusOk   = false
                             return
                         }

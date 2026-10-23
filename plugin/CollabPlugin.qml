@@ -29,7 +29,8 @@ MuseScore {
     // -----------------------------------------------------------------------
     // Persistent settings
     // -----------------------------------------------------------------------
-    property string serverUrl:     _loadSetting("collab_serverUrl",     "")
+    readonly property string defaultCloudUrl: "https://musescore-collab.onrender.com"
+    property string serverUrl:     _loadSetting("collab_serverUrl",     defaultCloudUrl)
     property string username:      _loadSetting("collab_username",      "")
     property string token:         _loadSetting("collab_token",         "")
     property string project:       _loadSetting("collab_project",       "")
