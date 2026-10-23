@@ -714,7 +714,7 @@ MuseScore {
             Button {
                 text: "Pick Bars"
                 DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
-                contentItem: Text { text: parent.text; color: "#1e1e2e"; font { pixelSize: 12; bold: true }; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text { text: parent.text; color: "#1e1e2e"; font.pixelSize: 12; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 background: Rectangle { radius: 5; color: "#89b4fa"; implicitWidth: 80; implicitHeight: 28 }
             }
             Button {

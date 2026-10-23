@@ -714,7 +714,7 @@ Rectangle {
             Button {
                 text: "Push"
                 DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
-                contentItem: Text { text: parent.text; color: "#1e1e2e"; font { pixelSize: 13; bold: true }; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text { text: parent.text; color: "#1e1e2e"; font.pixelSize: 13; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 background: Rectangle { radius: 5; color: parent.pressed ? "#5296e4" : "#89b4fa" }
             }
             Button {
@@ -778,7 +778,7 @@ Rectangle {
             Button {
                 text: "Create"
                 DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
-                contentItem: Text { text: parent.text; color: "#1e1e2e"; font { pixelSize: 13; bold: true }; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text { text: parent.text; color: "#1e1e2e"; font.pixelSize: 13; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 background: Rectangle { radius: 5; color: parent.pressed ? "#4dab64" : "#a6e3a1" }
             }
             Button {

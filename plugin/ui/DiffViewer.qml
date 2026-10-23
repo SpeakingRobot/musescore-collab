@@ -362,7 +362,7 @@ Rectangle {
             // Accept All
             Button {
                 text:  "Accept All"
-                contentItem: Text { text: parent.text; color: "#1e1e2e"; font { pixelSize: 12; bold: true }; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text { text: parent.text; color: "#1e1e2e"; font.pixelSize: 12; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 background: Rectangle { radius: 5; color: parent.pressed ? "#4dab64" : parent.hovered ? "#86d4a0" : "#a6e3a1"; implicitWidth: 90; implicitHeight: 30 }
                 onClicked: _acceptAll()
             }
@@ -370,7 +370,7 @@ Rectangle {
             // Reject All
             Button {
                 text:  "Reject All"
-                contentItem: Text { text: parent.text; color: "#1e1e2e"; font { pixelSize: 12; bold: true }; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text { text: parent.text; color: "#1e1e2e"; font.pixelSize: 12; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 background: Rectangle { radius: 5; color: parent.pressed ? "#b55a6a" : parent.hovered ? "#e07080" : "#f38ba8"; implicitWidth: 90; implicitHeight: 30 }
                 onClicked: _rejectAll()
             }

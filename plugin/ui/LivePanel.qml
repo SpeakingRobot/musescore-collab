@@ -249,7 +249,7 @@ Rectangle {
                             Button {
                                 text: "Accept"
                                 implicitWidth: 54; implicitHeight: 26
-                                contentItem: Text { text: parent.text; color: "#1e1e2e"; font { pixelSize: 11; bold: true }; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                contentItem: Text { text: parent.text; color: "#1e1e2e"; font.pixelSize: 11; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                 background: Rectangle { radius: 4; color: "#a6e3a1" }
                                 onClicked: {
                                     root.suggestionAccepted({
