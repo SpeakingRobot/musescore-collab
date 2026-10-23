@@ -200,17 +200,19 @@ function getProject(serverUrl, token, projectId, cb) {
 
 /**
  * push(serverUrl, token, project, branch, mscxContent, message, cb)
- * POST /api/projects/:project/push?branch=:branch
- * Body: { content, scoreData, branch, message }
+ * POST /api/projects/:project/branches/:branch/push
+ * Fallback: POST /api/projects/:project/push?branch=:branch
+ * Body: { scoreData, content, branch, message }
  * Response: { commitId, timestamp }
  */
 function push(serverUrl, token, project, branch, mscxContent, message, cb) {
-    var url = serverUrl.replace(/\/$/, "")
-              + "/api/projects/" + encodeURIComponent(project)
-              + "/push?branch=" + encodeURIComponent(branch);
+    var encProj = encodeURIComponent(project);
+    var encBranch = encodeURIComponent(branch || "main");
+    var base = serverUrl.replace(/\/$/, "");
+    var url = base + "/api/projects/" + encProj + "/branches/" + encBranch + "/push";
     var body = JSON.stringify({
-        content: mscxContent,
         scoreData: mscxContent,
+        content: mscxContent,
         branch: branch,
         message: message || "Update score"
     });
@@ -218,35 +220,60 @@ function push(serverUrl, token, project, branch, mscxContent, message, cb) {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + token
     };
+
     makeRequest("POST", url, headers, body, function (err, resp) {
+        if (err && (err.indexOf("404") !== -1 || err.indexOf("Not found") !== -1 || err.indexOf("Route not found") !== -1)) {
+            var fallbackUrl = base + "/api/projects/" + encProj + "/push?branch=" + encBranch;
+            makeRequest("POST", fallbackUrl, headers, body, function (err2, resp2) {
+                if (err2) return cb(err2, null);
+                var p2 = (resp2 && resp2.data) ? resp2.data : (resp2 || {});
+                cb(null, p2);
+            });
+            return;
+        }
         if (err) return cb(err, null);
         var payload = (resp && resp.data) ? resp.data : (resp || {});
         cb(null, payload);
     });
 }
 
+function _normalizePull(resp, cb) {
+    var payload = (resp && resp.data) ? resp.data : (resp || {});
+    var content = payload.scoreData || payload.content || (resp && (resp.scoreData || resp.content)) || null;
+    var result = {
+        commitId: payload.commitId || (resp && resp.commitId) || "",
+        content: content,
+        scoreData: content,
+        message: payload.message || (resp && resp.message) || "",
+        author: payload.author || payload.authorId || (resp && (resp.author || resp.authorId)) || ""
+    };
+    cb(null, result);
+}
+
 /**
  * pull(serverUrl, token, project, branch, cb)
- * GET /api/projects/:project/pull?branch=:branch
+ * GET /api/projects/:project/branches/:branch/pull
+ * Fallback: GET /api/projects/:project/pull?branch=:branch
  * Response: { commitId, content, scoreData, message, author }
  */
 function pull(serverUrl, token, project, branch, cb) {
-    var url = serverUrl.replace(/\/$/, "")
-              + "/api/projects/" + encodeURIComponent(project)
-              + "/pull?branch=" + encodeURIComponent(branch);
+    var encProj = encodeURIComponent(project);
+    var encBranch = encodeURIComponent(branch || "main");
+    var base = serverUrl.replace(/\/$/, "");
+    var url = base + "/api/projects/" + encProj + "/branches/" + encBranch + "/pull";
     var headers = { "Authorization": "Bearer " + token };
+
     makeRequest("GET", url, headers, null, function (err, resp) {
+        if (err && (err.indexOf("404") !== -1 || err.indexOf("Not found") !== -1 || err.indexOf("Route not found") !== -1)) {
+            var fallbackUrl = base + "/api/projects/" + encProj + "/pull?branch=" + encBranch;
+            makeRequest("GET", fallbackUrl, headers, null, function (err2, resp2) {
+                if (err2) return cb(err2, null);
+                _normalizePull(resp2, cb);
+            });
+            return;
+        }
         if (err) return cb(err, null);
-        var payload = (resp && resp.data) ? resp.data : (resp || {});
-        var content = payload.scoreData || payload.content || (resp && (resp.scoreData || resp.content)) || null;
-        var result = {
-            commitId: payload.commitId || (resp && resp.commitId) || "",
-            content: content,
-            scoreData: content,
-            message: payload.message || (resp && resp.message) || "",
-            author: payload.author || payload.authorId || (resp && (resp.author || resp.authorId)) || ""
-        };
-        cb(null, result);
+        _normalizePull(resp, cb);
     });
 }
 
@@ -268,14 +295,26 @@ function getBranches(serverUrl, token, project, cb) {
 
 /**
  * getHistory(serverUrl, token, project, branch, cb)
- * GET /api/projects/:project/history?branch=:branch
+ * GET /api/projects/:project/branches/:branch/history
+ * Fallback: GET /api/projects/:project/history?branch=:branch
  */
 function getHistory(serverUrl, token, project, branch, cb) {
-    var url = serverUrl.replace(/\/$/, "")
-              + "/api/projects/" + encodeURIComponent(project)
-              + "/history?branch=" + encodeURIComponent(branch);
+    var encProj = encodeURIComponent(project);
+    var encBranch = encodeURIComponent(branch || "main");
+    var base = serverUrl.replace(/\/$/, "");
+    var url = base + "/api/projects/" + encProj + "/branches/" + encBranch + "/history";
     var headers = { "Authorization": "Bearer " + token };
+
     makeRequest("GET", url, headers, null, function (err, resp) {
+        if (err && (err.indexOf("404") !== -1 || err.indexOf("Not found") !== -1 || err.indexOf("Route not found") !== -1)) {
+            var fallbackUrl = base + "/api/projects/" + encProj + "/history?branch=" + encBranch;
+            makeRequest("GET", fallbackUrl, headers, null, function (err2, resp2) {
+                if (err2) return cb(err2, null);
+                var l2 = (resp2 && resp2.data) ? resp2.data : (Array.isArray(resp2) ? resp2 : []);
+                cb(null, l2);
+            });
+            return;
+        }
         if (err) return cb(err, null);
         var list = (resp && resp.data) ? resp.data : (Array.isArray(resp) ? resp : []);
         cb(null, list);
