@@ -18,11 +18,14 @@ MuseScore {
     // -----------------------------------------------------------------------
     menuPath:    "Plugins.MuseCollab"
     description: "Git-style collaborative version control and live session for MuseScore"
-    version:     "2.0.0"
-    pluginType:  "dock"
-    dockArea:    "right"
-    width:       460
-    height:      640
+    version:        "2.0.0"
+    pluginType:     "dock"
+    dockArea:       "right"
+    implicitWidth:  780
+    implicitHeight: 650
+    width:          parent ? parent.width : implicitWidth
+    height:         parent ? parent.height : implicitHeight
+    anchors.fill:   parent
 
     // -----------------------------------------------------------------------
     // Persistent settings
