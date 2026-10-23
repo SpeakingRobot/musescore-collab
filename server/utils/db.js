@@ -12,8 +12,14 @@ const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // required for Neon
+  ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')
+    ? { rejectUnauthorized: false }
+    : false,
 });
+
+if (!process.env.DATABASE_URL) {
+  console.warn('⚠️  DATABASE_URL environment variable is missing!');
+}
 
 // ─── Schema initialisation ──────────────────────────────────────────────────
 

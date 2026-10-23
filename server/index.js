@@ -98,9 +98,7 @@ app.use((err, _req, res, _next) => {
   console.error('[Unhandled error]', err);
   res.status(500).json({
     success: false,
-    error: process.env.NODE_ENV === 'production'
-      ? 'An unexpected error occurred'
-      : err.message || 'An unexpected error occurred',
+    error: err.message || 'An unexpected error occurred',
   });
 });
 

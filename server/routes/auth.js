@@ -62,6 +62,13 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ success: false, error: 'Username already taken' });
     }
 
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({
+        success: false,
+        error: 'DATABASE_URL is not set in Render environment variables. Please add your Neon connection string to Render.'
+      });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await db.createUser(username, passwordHash);
 
