@@ -1,0 +1,25 @@
+app = "musescore-collab"
+primary_region = "sin"         # Singapore – closest free region to India
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3001"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[mounts]]
+  source = "musescore_collab_data"
+  destination = "/data"
