@@ -50,10 +50,12 @@ app.get('/', (_req, res) => {
     description: 'Collaborative version control and live session server for MuseScore.',
     endpoints: {
       auth: {
-        register: 'POST /api/auth/register',
-        login:    'POST /api/auth/login',
-        me:       'GET /api/auth/me',
-        join:     'POST /api/auth/join (join with inviteCode + displayName)',
+        createProject: 'POST /api/auth/create-project (name + project name only)',
+        joinProject:   'POST /api/auth/join-project (name + inviteCode only)',
+        register:      'POST /api/auth/register',
+        login:         'POST /api/auth/login',
+        me:            'GET /api/auth/me',
+        join:          'POST /api/auth/join (join with inviteCode + displayName)',
       },
       projects: {
         create:         'POST /api/projects',
