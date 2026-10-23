@@ -200,101 +200,91 @@ function getProject(serverUrl, token, projectId, cb) {
 
 /**
  * push(serverUrl, token, project, branch, mscxContent, message, cb)
- * POST /api/projects/:project/branches/:branch/commits
- * Body: { content, message }
+ * POST /api/projects/:project/push?branch=:branch
+ * Body: { content, scoreData, branch, message }
  * Response: { commitId, timestamp }
- *
- * @param {string}   serverUrl   - Base URL of the MuseCollab server.
- * @param {string}   token       - Bearer token from login() or register().
- * @param {string}   project     - Project identifier.
- * @param {string}   branch      - Target branch name.
- * @param {string}   mscxContent - Full MSCX XML string to commit.
- * @param {string}   message     - Commit message.
- * @param {Function} cb          - cb(error, { commitId, timestamp })
  */
 function push(serverUrl, token, project, branch, mscxContent, message, cb) {
     var url = serverUrl.replace(/\/$/, "")
               + "/api/projects/" + encodeURIComponent(project)
-              + "/branches/" + encodeURIComponent(branch)
-              + "/commits";
-    var body = JSON.stringify({ content: mscxContent, message: message });
+              + "/push?branch=" + encodeURIComponent(branch);
+    var body = JSON.stringify({
+        content: mscxContent,
+        scoreData: mscxContent,
+        branch: branch,
+        message: message || "Update score"
+    });
     var headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + token
     };
-    makeRequest("POST", url, headers, body, cb);
+    makeRequest("POST", url, headers, body, function (err, resp) {
+        if (err) return cb(err, null);
+        var payload = (resp && resp.data) ? resp.data : (resp || {});
+        cb(null, payload);
+    });
 }
 
 /**
  * pull(serverUrl, token, project, branch, cb)
- * GET /api/projects/:project/branches/:branch/head
- * Response: { commitId, content, message, timestamp, author }
- *
- * @param {string}   serverUrl - Base URL of the MuseCollab server.
- * @param {string}   token     - Bearer token from login() or register().
- * @param {string}   project   - Project identifier.
- * @param {string}   branch    - Branch name to pull the latest commit from.
- * @param {Function} cb        - cb(error, { commitId, content, message, timestamp, author })
+ * GET /api/projects/:project/pull?branch=:branch
+ * Response: { commitId, content, scoreData, message, author }
  */
 function pull(serverUrl, token, project, branch, cb) {
     var url = serverUrl.replace(/\/$/, "")
               + "/api/projects/" + encodeURIComponent(project)
-              + "/branches/" + encodeURIComponent(branch)
-              + "/head";
+              + "/pull?branch=" + encodeURIComponent(branch);
     var headers = { "Authorization": "Bearer " + token };
-    makeRequest("GET", url, headers, null, cb);
+    makeRequest("GET", url, headers, null, function (err, resp) {
+        if (err) return cb(err, null);
+        var payload = (resp && resp.data) ? resp.data : (resp || {});
+        var content = payload.scoreData || payload.content || (resp && (resp.scoreData || resp.content)) || null;
+        var result = {
+            commitId: payload.commitId || (resp && resp.commitId) || "",
+            content: content,
+            scoreData: content,
+            message: payload.message || (resp && resp.message) || "",
+            author: payload.author || payload.authorId || (resp && (resp.author || resp.authorId)) || ""
+        };
+        cb(null, result);
+    });
 }
 
 /**
  * getBranches(serverUrl, token, project, cb)
  * GET /api/projects/:project/branches
- * Response: [{ name, lastCommitId, lastCommitTime, author, aheadBy, behindBy }]
- *
- * @param {string}   serverUrl - Base URL of the MuseCollab server.
- * @param {string}   token     - Bearer token from login() or register().
- * @param {string}   project   - Project identifier.
- * @param {Function} cb        - cb(error, Array<{ name, lastCommitId, lastCommitTime, author, aheadBy, behindBy }>)
  */
 function getBranches(serverUrl, token, project, cb) {
     var url = serverUrl.replace(/\/$/, "")
               + "/api/projects/" + encodeURIComponent(project)
               + "/branches";
     var headers = { "Authorization": "Bearer " + token };
-    makeRequest("GET", url, headers, null, cb);
+    makeRequest("GET", url, headers, null, function (err, resp) {
+        if (err) return cb(err, null);
+        var list = (resp && resp.data) ? resp.data : (Array.isArray(resp) ? resp : []);
+        cb(null, list);
+    });
 }
 
 /**
  * getHistory(serverUrl, token, project, branch, cb)
- * GET /api/projects/:project/branches/:branch/history
- * Response: [{ commitId, message, author, timestamp }]
- *
- * @param {string}   serverUrl - Base URL of the MuseCollab server.
- * @param {string}   token     - Bearer token from login() or register().
- * @param {string}   project   - Project identifier.
- * @param {string}   branch    - Branch name whose commit history to retrieve.
- * @param {Function} cb        - cb(error, Array<{ commitId, message, author, timestamp }>)
+ * GET /api/projects/:project/history?branch=:branch
  */
 function getHistory(serverUrl, token, project, branch, cb) {
     var url = serverUrl.replace(/\/$/, "")
               + "/api/projects/" + encodeURIComponent(project)
-              + "/branches/" + encodeURIComponent(branch)
-              + "/history";
+              + "/history?branch=" + encodeURIComponent(branch);
     var headers = { "Authorization": "Bearer " + token };
-    makeRequest("GET", url, headers, null, cb);
+    makeRequest("GET", url, headers, null, function (err, resp) {
+        if (err) return cb(err, null);
+        var list = (resp && resp.data) ? resp.data : (Array.isArray(resp) ? resp : []);
+        cb(null, list);
+    });
 }
 
 /**
  * getDiff(serverUrl, token, project, fromCommit, toCommit, cb)
  * GET /api/projects/:project/diff?from=:fromCommit&to=:toCommit
- * Response: { diffs: [{ measureNumber, staffIndex, voiceIndex, type,
- *                       eventIndex, eventA, eventB }] }
- *
- * @param {string}   serverUrl  - Base URL of the MuseCollab server.
- * @param {string}   token      - Bearer token from login() or register().
- * @param {string}   project    - Project identifier.
- * @param {string}   fromCommit - Base commit ID.
- * @param {string}   toCommit   - Target commit ID.
- * @param {Function} cb         - cb(error, { diffs: Array })
  */
 function getDiff(serverUrl, token, project, fromCommit, toCommit, cb) {
     var url = serverUrl.replace(/\/$/, "")
@@ -303,25 +293,27 @@ function getDiff(serverUrl, token, project, fromCommit, toCommit, cb) {
               + "?from=" + encodeURIComponent(fromCommit)
               + "&to=" + encodeURIComponent(toCommit);
     var headers = { "Authorization": "Bearer " + token };
-    makeRequest("GET", url, headers, null, cb);
+    makeRequest("GET", url, headers, null, function (err, resp) {
+        if (err) return cb(err, null);
+        var diffs = (resp && resp.data) ? resp.data : resp;
+        cb(null, diffs);
+    });
 }
 
 /**
  * getCollaborators(serverUrl, token, project, cb)
  * GET /api/projects/:project/collaborators
- * Response: [{ userId, username, branch, lastPushTime, avatarInitial }]
- *
- * @param {string}   serverUrl - Base URL of the MuseCollab server.
- * @param {string}   token     - Bearer token from login() or register().
- * @param {string}   project   - Project identifier.
- * @param {Function} cb        - cb(error, Array<{ userId, username, branch, lastPushTime, avatarInitial }>)
  */
 function getCollaborators(serverUrl, token, project, cb) {
     var url = serverUrl.replace(/\/$/, "")
               + "/api/projects/" + encodeURIComponent(project)
               + "/collaborators";
     var headers = { "Authorization": "Bearer " + token };
-    makeRequest("GET", url, headers, null, cb);
+    makeRequest("GET", url, headers, null, function (err, resp) {
+        if (err) return cb(err, null);
+        var list = (resp && resp.data) ? resp.data : (Array.isArray(resp) ? resp : []);
+        cb(null, list);
+    });
 }
 
 /**
@@ -398,9 +390,13 @@ function getMeasureDiff(serverUrl, token, projectId, branch, against, cb) {
     var url = serverUrl.replace(/\/$/, "")
               + "/api/projects/" + encodeURIComponent(projectId)
               + "/measures?branch=" + encodeURIComponent(branch)
-              + "&against=" + encodeURIComponent(against);
+              + "&against=" + encodeURIComponent(against || "main");
     var headers = { "Authorization": "Bearer " + token };
-    makeRequest("GET", url, headers, null, cb);
+    makeRequest("GET", url, headers, null, function (err, resp) {
+        if (err) return cb(err, null);
+        var diffs = (resp && resp.data) ? resp.data : (Array.isArray(resp) ? resp : []);
+        cb(null, diffs);
+    });
 }
 
 /**
@@ -427,7 +423,11 @@ function importMeasures(serverUrl, token, projectId, fromBranch, measureNumbers,
               + "/import-measures";
     var body = JSON.stringify({ fromBranch: fromBranch, measureNumbers: measureNumbers, commitMessage: commitMessage });
     var headers = { "Content-Type": "application/json", "Authorization": "Bearer " + token };
-    makeRequest("POST", url, headers, body, cb);
+    makeRequest("POST", url, headers, body, function (err, resp) {
+        if (err) return cb(err, null);
+        var data = (resp && resp.data) ? resp.data : (resp || {});
+        cb(null, data);
+    });
 }
 
 // ---------------------------------------------------------------------------

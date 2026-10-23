@@ -215,7 +215,8 @@ MuseScore {
                      return
                  }
                  if (!data || !data.content) {
-                     _setError("Pull completed but no score content was returned.")
+                     _setStatus("No notation commits on '" + branch + "' yet. Click Push to save the first version!")
+                     autoDismissTimer.restart()
                      return
                  }
                  pullResultDialog.content   = data.content

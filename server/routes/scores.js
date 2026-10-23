@@ -312,103 +312,158 @@ router.post('/projects/:projectId/branches', authenticateToken, async (req, res)
 // ─── Push / Pull / History ────────────────────────────────────────────────────
 
 /**
- * POST /api/projects/:projectId/branches/:branchName/push
- * Auth required, member.
- * Body: { scoreData: {}, message: "" }
- * Creates a new commit on the branch.
+ * Helper to resolve the branch name from query, body, or path params.
+ * Handles subpaths like "Rahul/main/commits" or "Rahul/main/head" or "Rahul/main/pull".
  */
-router.post('/projects/:projectId/branches/:branchName/push', authenticateToken, async (req, res) => {
+function resolveBranch(req, explicitBranch = null) {
+  if (explicitBranch) return explicitBranch.replace(/^\/+|\/+$/g, '').trim();
+  let branch = req.query.branch || (req.body && req.body.branch) || req.params.branchName || null;
+  if (branch) {
+    try { branch = decodeURIComponent(branch); } catch (_) {}
+    return branch.replace(/^\/+|\/+$/g, '').trim();
+  }
+  if (req.params[0]) {
+    let rest = req.params[0];
+    try { rest = decodeURIComponent(rest); } catch (_) {}
+    const suffixes = ['/push', '/commits', '/pull', '/head', '/history'];
+    for (const suffix of suffixes) {
+      if (rest.endsWith(suffix)) {
+        rest = rest.slice(0, -suffix.length);
+        break;
+      }
+    }
+    return rest.replace(/^\/+|\/+$/g, '').trim();
+  }
+  return 'main';
+}
+
+/**
+ * Push handler: accepts both scoreData and content, JSON object or string.
+ */
+async function handlePush(req, res, explicitBranch = null) {
   try {
     const project = await requireMember(req, res, req.params.projectId);
     if (!project) return;
 
-    const { scoreData, message } = req.body;
-    if (!scoreData || typeof scoreData !== 'object') {
-      return res.status(400).json({ success: false, error: 'scoreData must be a JSON object' });
+    let { scoreData, content, message } = req.body || {};
+    let dataToSave = scoreData || content;
+
+    if (!dataToSave) {
+      return res.status(400).json({ success: false, error: 'scoreData or content is required' });
     }
-    if (!message || !message.trim()) {
-      return res.status(400).json({ success: false, error: 'Commit message is required' });
+    if (typeof dataToSave === 'string') {
+      try {
+        dataToSave = JSON.parse(dataToSave);
+      } catch (_) {
+        dataToSave = { raw: dataToSave };
+      }
     }
 
-    const branch = await db.getBranchByName(project.id, req.params.branchName);
+    const commitMessage = (message && message.trim()) ? message.trim() : 'Update score';
+    const branchName = resolveBranch(req, explicitBranch);
+
+    let branch = await db.getBranchByName(project.id, branchName);
     if (!branch) {
-      return res.status(404).json({ success: false, error: 'Branch not found' });
+      // Auto-create personal/feature branch if not yet in database
+      branch = await db.createBranch(project.id, branchName, 'main');
     }
 
     const commit = await db.createCommit(
       branch.id,
       project.id,
       req.user.userId,
-      message.trim(),
-      scoreData
+      commitMessage,
+      dataToSave
     );
 
     return res.status(201).json({
       success: true,
+      commitId: commit.id,
       data: {
         commitId: commit.id,
         branchId: commit.branch_id,
+        branchName: branch.name,
         message: commit.message,
         createdAt: commit.created_at,
         authorId: commit.author_id,
       },
     });
   } catch (err) {
-    console.error('POST push error:', err);
-    return res.status(500).json({ success: false, error: 'Failed to push commit' });
+    console.error('Push error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to push commit: ' + err.message });
   }
-});
+}
 
 /**
- * GET /api/projects/:projectId/branches/:branchName/pull
- * Auth required, member.
- * Returns the latest commit (with full scoreData) from the branch.
+ * Pull handler: returns full score data for both scoreData and content fields.
  */
-router.get('/projects/:projectId/branches/:branchName/pull', authenticateToken, async (req, res) => {
+async function handlePull(req, res, explicitBranch = null) {
   try {
     const project = await requireMember(req, res, req.params.projectId);
     if (!project) return;
 
-    const branch = await db.getBranchByName(project.id, req.params.branchName);
+    const branchName = resolveBranch(req, explicitBranch);
+    const branch = await db.getBranchByName(project.id, branchName);
     if (!branch) {
-      return res.status(404).json({ success: false, error: 'Branch not found' });
+      return res.json({
+        success: true,
+        data: null,
+        content: null,
+        scoreData: null,
+        message: `Branch '${branchName}' does not exist yet`,
+      });
     }
 
     const commit = await db.getLatestCommit(branch.id);
     if (!commit) {
-      return res.json({ success: true, data: null, message: 'No commits on this branch yet' });
+      return res.json({
+        success: true,
+        data: null,
+        content: null,
+        scoreData: null,
+        message: 'No commits on this branch yet',
+      });
     }
+
+    const rawScore = commit.score_data;
+    const scorePayload = (rawScore && rawScore.raw) ? rawScore.raw : rawScore;
 
     return res.json({
       success: true,
+      commitId: commit.id,
+      content: scorePayload,
+      scoreData: scorePayload,
+      message: commit.message,
+      author: commit.author_id,
       data: {
         commitId: commit.id,
         branchId: commit.branch_id,
+        branchName: branch.name,
         message: commit.message,
         authorId: commit.author_id,
-        scoreData: commit.score_data,
+        scoreData: scorePayload,
+        content: scorePayload,
         createdAt: commit.created_at,
       },
     });
   } catch (err) {
-    console.error('GET pull error:', err);
-    return res.status(500).json({ success: false, error: 'Failed to pull latest commit' });
+    console.error('Pull error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to pull latest commit: ' + err.message });
   }
-});
+}
 
 /**
- * GET /api/projects/:projectId/branches/:branchName/history
- * Auth required, member.
- * Returns last 20 commits (without scoreData for brevity).
+ * History handler: returns commit list.
  */
-router.get('/projects/:projectId/branches/:branchName/history', authenticateToken, async (req, res) => {
+async function handleHistory(req, res, explicitBranch = null) {
   try {
     const project = await requireMember(req, res, req.params.projectId);
     if (!project) return;
 
-    const branch = await db.getBranchByName(project.id, req.params.branchName);
+    const branchName = resolveBranch(req, explicitBranch);
+    const branch = await db.getBranchByName(project.id, branchName);
     if (!branch) {
-      return res.status(404).json({ success: false, error: 'Branch not found' });
+      return res.json({ success: true, data: [] });
     }
 
     const commits = await db.getCommitsByBranch(branch.id, 20);
@@ -422,9 +477,45 @@ router.get('/projects/:projectId/branches/:branchName/history', authenticateToke
       })),
     });
   } catch (err) {
-    console.error('GET history error:', err);
-    return res.status(500).json({ success: false, error: 'Failed to fetch commit history' });
+    console.error('History error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch commit history: ' + err.message });
   }
+}
+
+// ─── Register Push / Pull / History Routes ────────────────────────────────────
+
+// Direct endpoints with query param fallback (?branch=...)
+router.post('/projects/:projectId/push', authenticateToken, (req, res) => handlePush(req, res));
+router.post('/projects/:projectId/commits', authenticateToken, (req, res) => handlePush(req, res));
+router.get('/projects/:projectId/pull', authenticateToken, (req, res) => handlePull(req, res));
+router.get('/projects/:projectId/head', authenticateToken, (req, res) => handlePull(req, res));
+router.get('/projects/:projectId/history', authenticateToken, (req, res) => handleHistory(req, res));
+
+// Standard single-segment branch routes (e.g. /branches/main/push)
+router.post('/projects/:projectId/branches/:branchName/push', authenticateToken, (req, res) => handlePush(req, res));
+router.post('/projects/:projectId/branches/:branchName/commits', authenticateToken, (req, res) => handlePush(req, res));
+router.get('/projects/:projectId/branches/:branchName/pull', authenticateToken, (req, res) => handlePull(req, res));
+router.get('/projects/:projectId/branches/:branchName/head', authenticateToken, (req, res) => handlePull(req, res));
+router.get('/projects/:projectId/branches/:branchName/history', authenticateToken, (req, res) => handleHistory(req, res));
+
+// Wildcard routes for multi-segment branches (e.g. /branches/Rahul/main/pull, /branches/Rahul/main/commits)
+router.post('/projects/:projectId/branches/*', authenticateToken, (req, res, next) => {
+  const rest = req.params[0] || '';
+  if (rest.endsWith('/push') || rest.endsWith('/commits')) {
+    return handlePush(req, res);
+  }
+  next();
+});
+
+router.get('/projects/:projectId/branches/*', authenticateToken, (req, res, next) => {
+  const rest = req.params[0] || '';
+  if (rest.endsWith('/pull') || rest.endsWith('/head')) {
+    return handlePull(req, res);
+  }
+  if (rest.endsWith('/history')) {
+    return handleHistory(req, res);
+  }
+  return handlePull(req, res);
 });
 
 // ─── Collaborators ────────────────────────────────────────────────────────────
@@ -547,18 +638,20 @@ router.get('/projects/:projectId/measures', authenticateToken, async (req, res) 
     const project = await requireMember(req, res, req.params.projectId);
     if (!project) return;
 
-    const { branch: branchName, against: againstName } = req.query;
-    if (!branchName || !againstName) {
-      return res.status(400).json({ success: false, error: 'branch and against query params are required' });
+    let { branch: branchName, against: againstName } = req.query;
+    if (!branchName) {
+      return res.status(400).json({ success: false, error: 'branch query param is required' });
     }
+    const targetAgainst = againstName || 'main';
 
     const [branchA, branchB] = await Promise.all([
-      db.getBranchByName(project.id, againstName),
+      db.getBranchByName(project.id, targetAgainst),
       db.getBranchByName(project.id, branchName),
     ]);
 
-    if (!branchA) return res.status(404).json({ success: false, error: `Branch '${againstName}' not found` });
-    if (!branchB) return res.status(404).json({ success: false, error: `Branch '${branchName}' not found` });
+    if (!branchA || !branchB) {
+      return res.json({ success: true, data: [], message: 'One or both branches not found' });
+    }
 
     const [commitA, commitB] = await Promise.all([
       db.getLatestCommit(branchA.id),
@@ -569,7 +662,12 @@ router.get('/projects/:projectId/measures', authenticateToken, async (req, res) 
       return res.json({ success: true, data: [], message: 'One or both branches have no commits' });
     }
 
-    const measureDiff = getMeasureDiff(commitA.score_data, commitB.score_data);
+    let scoreDataA = commitA.score_data;
+    if (scoreDataA && scoreDataA.raw) scoreDataA = scoreDataA.raw;
+    let scoreDataB = commitB.score_data;
+    if (scoreDataB && scoreDataB.raw) scoreDataB = scoreDataB.raw;
+
+    const measureDiff = getMeasureDiff(scoreDataA, scoreDataB);
 
     return res.json({ success: true, data: measureDiff });
   } catch (err) {
@@ -614,9 +712,18 @@ router.post('/projects/:projectId/import-measures', authenticateToken, async (re
     ]);
 
     if (!srcCommit) return res.status(400).json({ success: false, error: `Branch '${fromBranch}' has no commits` });
-    if (!mainCommit) return res.status(400).json({ success: false, error: 'main branch has no commits' });
 
-    const mergedScore = importMeasures(mainCommit.score_data, srcCommit.score_data, measureNumbers);
+    let baseScore = mainCommit ? mainCommit.score_data : null;
+    if (baseScore && baseScore.raw) baseScore = baseScore.raw;
+    let srcScore = srcCommit.score_data;
+    if (srcScore && srcScore.raw) srcScore = srcScore.raw;
+
+    let mergedScore;
+    if (!baseScore) {
+      mergedScore = srcScore;
+    } else {
+      mergedScore = importMeasures(baseScore, srcScore, measureNumbers);
+    }
 
     const message = (commitMessage && commitMessage.trim())
       ? commitMessage.trim()
