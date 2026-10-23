@@ -38,7 +38,8 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
-    version: '2.0.0',
+    version: '2.0.1',
+    commit: 'f1457da',
     time: new Date().toISOString(),
   });
 });
