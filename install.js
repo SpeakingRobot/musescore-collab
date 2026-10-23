@@ -26,11 +26,18 @@ if (!fs.existsSync(SOURCE_DIR)) {
 // Common MuseScore 4 and 3 plugin locations per OS
 function getCandidatePluginPaths() {
   if (PLATFORM === 'win32') {
-    return [
-      path.join(HOME, 'Documents', 'MuseScore4', 'Plugins'),
-      path.join(process.env.LOCALAPPDATA || path.join(HOME, 'AppData', 'Local'), 'MuseScore', 'MuseScore4', 'plugins'),
-      path.join(HOME, 'Documents', 'MuseScore3', 'Plugins'),
-    ];
+    const list = [];
+    if (process.env.USERPROFILE) {
+      list.push(path.join(process.env.USERPROFILE, 'OneDrive', 'Documents', 'MuseScore4', 'Plugins'));
+      list.push(path.join(process.env.USERPROFILE, 'Documents', 'MuseScore4', 'Plugins'));
+      list.push(path.join(process.env.USERPROFILE, 'OneDrive', 'Documents', 'MuseScore3', 'Plugins'));
+      list.push(path.join(process.env.USERPROFILE, 'Documents', 'MuseScore3', 'Plugins'));
+    }
+    list.push(path.join(HOME, 'OneDrive', 'Documents', 'MuseScore4', 'Plugins'));
+    list.push(path.join(HOME, 'Documents', 'MuseScore4', 'Plugins'));
+    list.push(path.join(process.env.LOCALAPPDATA || path.join(HOME, 'AppData', 'Local'), 'MuseScore', 'MuseScore4', 'plugins'));
+    list.push(path.join(HOME, 'Documents', 'MuseScore3', 'Plugins'));
+    return [...new Set(list)];
   } else if (PLATFORM === 'darwin') {
     return [
       path.join(HOME, 'Documents', 'MuseScore4', 'Plugins'),
@@ -48,19 +55,24 @@ function getCandidatePluginPaths() {
   }
 }
 
-// Find existing path or choose preferred default
-function resolveTargetDirectory() {
+// Find existing paths or choose preferred default
+function resolveTargetDirectories() {
   const candidates = getCandidatePluginPaths();
+  const existing = candidates.filter(p => fs.existsSync(p));
 
-  // Pick first one that already exists
-  for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      return path.join(p, 'MuseCollab');
-    }
+  if (existing.length === 0) {
+    return [path.join(candidates[0], 'MuseCollab')];
   }
 
-  // If none exists yet, use the primary Documents location and create it
-  return path.join(candidates[0], 'MuseCollab');
+  const targets = [];
+  for (const p of existing) {
+    targets.push(path.join(p, 'MuseCollab'));
+    const lower = path.join(p, 'Musecollab');
+    if (fs.existsSync(lower)) {
+      targets.push(lower);
+    }
+  }
+  return [...new Set(targets)];
 }
 
 // Recursive directory copy
@@ -87,17 +99,24 @@ console.log('\n🎵  MuseCollab 1-Click Installer');
 console.log('=================================');
 console.log(`Detected OS: ${PLATFORM === 'darwin' ? 'macOS' : PLATFORM === 'win32' ? 'Windows' : 'Linux'}`);
 
-const targetDir = resolveTargetDirectory();
-console.log(`Target directory: ${targetDir}`);
+const targetDirs = resolveTargetDirectories();
+console.log(`Target directories found: ${targetDirs.length}`);
+for (const t of targetDirs) {
+  console.log(` -> ${t}`);
+}
 
 try {
-  console.log('Copying plugin files…');
-  copyDirectorySync(SOURCE_DIR, targetDir);
+  for (const t of targetDirs) {
+    console.log(`Copying plugin files to: ${t}…`);
+    copyDirectorySync(SOURCE_DIR, t);
+  }
 
   console.log('\n╔════════════════════════════════════════════════════════════════╗');
   console.log('║        ✅  MuseCollab Plugin Installed Successfully!           ║');
   console.log('╚════════════════════════════════════════════════════════════════╝');
-  console.log(`\n📁 Location: ${targetDir}`);
+  for (const t of targetDirs) {
+    console.log(`📁 Installed at: ${t}`);
+  }
   console.log('🌐 Server:   https://musescore-collab.onrender.com (Pre-configured!)\n');
   console.log('👉 Quick 2-step activation in MuseScore:');
   console.log('   1. Open MuseScore 4 (or 3)');

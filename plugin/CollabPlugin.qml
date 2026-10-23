@@ -6,6 +6,9 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Layouts 1.3
 import MuseScore 3.0
+import "js/api.js" as Api
+import "js/mscxParser.js" as MscxParser
+import "js/scoreWriter.js" as ScoreWriter
 
 MuseScore {
     id: pluginRoot
@@ -18,13 +21,6 @@ MuseScore {
     version:     "2.0.0"
     pluginType:  "dock"
     dockArea:    "right"
-
-    // -----------------------------------------------------------------------
-    // JavaScript modules
-    // -----------------------------------------------------------------------
-    Qt.include("js/api.js")
-    Qt.include("js/mscxParser.js")
-    Qt.include("js/scoreWriter.js")
 
     // -----------------------------------------------------------------------
     // Persistent settings
@@ -72,7 +68,7 @@ MuseScore {
             _setStatus("🔄 Reconnecting to " + (pluginRoot.projectName || "Project") + "…")
 
             // Silently verify session in the background
-            getProject(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.project, function (err, data) {
+            Api.getProject(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.project, function (err, data) {
                 if (err) {
                     _setError("Session expired or server unavailable. Please check settings.")
                     pluginRoot.activeTab = 0
@@ -173,11 +169,11 @@ MuseScore {
         pluginRoot.loading = true
         _setStatus("Reading score notation…")
 
-        var scoreStructure = readScoreStructure(curScore)
+        var scoreStructure = ScoreWriter.readScoreStructure(curScore)
 
         _setStatus("Pushing to " + pluginRoot.currentBranch + "…")
 
-        push(pluginRoot.serverUrl,
+        Api.push(pluginRoot.serverUrl,
              pluginRoot.token,
              pluginRoot.project,
              pluginRoot.currentBranch,
@@ -203,7 +199,7 @@ MuseScore {
         pluginRoot.loading = true
         _setStatus("Pulling from " + branch + "…")
 
-        pull(pluginRoot.serverUrl,
+        Api.pull(pluginRoot.serverUrl,
              pluginRoot.token,
              pluginRoot.project,
              branch,
@@ -234,7 +230,7 @@ MuseScore {
         pluginRoot.loading = true
         _setStatus("Comparing measures with " + theirBranch + "…")
 
-        getMeasureDiff(pluginRoot.serverUrl,
+        Api.getMeasureDiff(pluginRoot.serverUrl,
                        pluginRoot.token,
                        pluginRoot.project,
                        theirBranch,
@@ -265,7 +261,7 @@ MuseScore {
         pluginRoot.loading = true
         _setStatus("Importing " + measureNumbers.length + " bar(s) from " + measurePicker.sourceTitle + "…")
 
-        importMeasures(pluginRoot.serverUrl,
+        Api.importMeasures(pluginRoot.serverUrl,
                        pluginRoot.token,
                        pluginRoot.project,
                        measurePicker.sourceTitle,
@@ -291,17 +287,17 @@ MuseScore {
         pluginRoot.loading = true
         _setStatus("Fetching full diff for " + theirBranch + "…")
 
-        pull(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.project, pluginRoot.currentBranch, function (errA, dataA) {
+        Api.pull(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.project, pluginRoot.currentBranch, function (errA, dataA) {
             if (errA) { _setError("Could not fetch " + pluginRoot.currentBranch + ": " + errA); return }
-            pull(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.project, theirBranch, function (errB, dataB) {
+            Api.pull(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.project, theirBranch, function (errB, dataB) {
                 pluginRoot.loading = false
                 if (errB) { _setError("Could not fetch " + theirBranch + ": " + errB); return }
 
                 var scoreA, scoreB
-                try { scoreA = typeof dataA.content === "string" ? JSON.parse(dataA.content) : dataA.content } catch (e) { scoreA = parseMscx(dataA.content) }
-                try { scoreB = typeof dataB.content === "string" ? JSON.parse(dataB.content) : dataB.content } catch (e) { scoreB = parseMscx(dataB.content) }
+                try { scoreA = typeof dataA.content === "string" ? JSON.parse(dataA.content) : dataA.content } catch (e) { scoreA = MscxParser.parseMscx(dataA.content) }
+                try { scoreB = typeof dataB.content === "string" ? JSON.parse(dataB.content) : dataB.content } catch (e) { scoreB = MscxParser.parseMscx(dataB.content) }
 
-                var diffs = diffScores(scoreA, scoreB)
+                var diffs = MscxParser.diffScores(scoreA, scoreB)
                 pluginRoot.pendingDiffs  = diffs
                 pluginRoot.diffBaseName  = pluginRoot.currentBranch
                 pluginRoot.diffTheirName = theirBranch
@@ -335,7 +331,7 @@ MuseScore {
             if (idx >= 0 && idx < diffs.length) {
                 var d = diffs[idx]
                 if (d.eventB) {
-                    var ok = applyNoteChange(cursor, d.measureNumber, d.staffIndex - 1, d.voiceIndex, d.eventIndex, d.eventB)
+                    var ok = ScoreWriter.applyNoteChange(cursor, d.measureNumber, d.staffIndex - 1, d.voiceIndex, d.eventIndex, d.eventB)
                     if (ok) applied++
                 }
             }
@@ -357,7 +353,7 @@ MuseScore {
         pluginRoot.loading = true
         _setStatus("Starting live session…")
 
-        startLiveSession(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.project, function (err, data) {
+        Api.startLiveSession(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.project, function (err, data) {
             pluginRoot.loading = false
             if (err) {
                 _setError("Failed to start live session: " + err)
@@ -392,7 +388,7 @@ MuseScore {
     function handleStopLive() {
         livePollTimer.stop()
         if (pluginRoot.isLiveHost && pluginRoot.activeLiveSessionId) {
-            endLiveSession(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.activeLiveSessionId, function () {})
+            Api.endLiveSession(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.activeLiveSessionId, function () {})
         }
         pluginRoot.activeLiveSessionId = ""
         pluginRoot.isLiveHost          = false
@@ -404,8 +400,8 @@ MuseScore {
 
     function handleBroadcastScore() {
         if (!curScore) return
-        var structure = readScoreStructure(curScore)
-        sendLiveSnapshot(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.activeLiveSessionId, structure, function (err, res) {
+        var structure = ScoreWriter.readScoreStructure(curScore)
+        Api.sendLiveSnapshot(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.activeLiveSessionId, structure, function (err, res) {
             if (!err) {
                 livePanel.lastSnapshotTime = new Date().toLocaleTimeString()
             }
@@ -421,7 +417,7 @@ MuseScore {
         onTriggered: {
             if (!pluginRoot.activeLiveSessionId) return
 
-            getLiveSnapshot(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.activeLiveSessionId, function (err, res) {
+            Api.getLiveSnapshot(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.activeLiveSessionId, function (err, res) {
                 if (err) return
                 if (res && res.data) {
                     var d = res.data
@@ -625,8 +621,8 @@ MuseScore {
 
                     onViewDiffRequested: function (snapshot) {
                         if (curScore && snapshot) {
-                            var localScore = readScoreStructure(curScore)
-                            var diffs = diffScores(localScore, snapshot)
+                            var localScore = ScoreWriter.readScoreStructure(curScore)
+                            var diffs = MscxParser.diffScores(localScore, snapshot)
                             pluginRoot.pendingDiffs  = diffs
                             pluginRoot.diffBaseName  = "My Score"
                             pluginRoot.diffTheirName = "Live Session"
@@ -635,7 +631,7 @@ MuseScore {
                     }
 
                     onSendSuggestion: function (mNum, fNote, tNote, desc) {
-                        sendLiveSuggestion(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.activeLiveSessionId, mNum, fNote, tNote, desc, function (err, res) {
+                        Api.sendLiveSuggestion(pluginRoot.serverUrl, pluginRoot.token, pluginRoot.activeLiveSessionId, mNum, fNote, tNote, desc, function (err, res) {
                             if (!err) _setStatus("✓ Suggestion sent to host.")
                         })
                     }
@@ -644,9 +640,9 @@ MuseScore {
                         if (curScore) {
                             curScore.startCmd()
                             var cursor = curScore.newCursor()
-                            var targetPitch = nameToPitch(sugg.toNote)
+                            var targetPitch = ScoreWriter.nameToPitch(sugg.toNote)
                             if (targetPitch > 0) {
-                                applyNoteChange(cursor, sugg.measureNumber, 0, 0, 0, { type: "note", pitch: targetPitch, tpc: 14, durationType: "quarter" })
+                                ScoreWriter.applyNoteChange(cursor, sugg.measureNumber, 0, 0, 0, { type: "note", pitch: targetPitch, tpc: 14, durationType: "quarter" })
                             }
                             curScore.endCmd()
                             handleBroadcastScore()

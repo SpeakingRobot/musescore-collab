@@ -20,9 +20,15 @@ echo.
 
 set "TARGET_DIR=%USERPROFILE%\Documents\MuseScore4\Plugins\MuseCollab"
 
-if not exist "%USERPROFILE%\Documents\MuseScore4\Plugins" (
-    if exist "%USERPROFILE%\Documents\MuseScore3\Plugins" (
-        set "TARGET_DIR=%USERPROFILE%\Documents\MuseScore3\Plugins\MuseCollab"
+if exist "%USERPROFILE%\OneDrive\Documents\MuseScore4\Plugins" (
+    set "TARGET_DIR=%USERPROFILE%\OneDrive\Documents\MuseScore4\Plugins\MuseCollab"
+) else (
+    if not exist "%USERPROFILE%\Documents\MuseScore4\Plugins" (
+        if exist "%USERPROFILE%\OneDrive\Documents\MuseScore3\Plugins" (
+            set "TARGET_DIR=%USERPROFILE%\OneDrive\Documents\MuseScore3\Plugins\MuseCollab"
+        ) else if exist "%USERPROFILE%\Documents\MuseScore3\Plugins" (
+            set "TARGET_DIR=%USERPROFILE%\Documents\MuseScore3\Plugins\MuseCollab"
+        )
     )
 )
 
