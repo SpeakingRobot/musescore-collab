@@ -1,5 +1,5 @@
 // SettingsPanel.qml
-// MuseCollab v2 — Settings panel with Register and Join by Code tabs.
+// MuseCollab v2 — Frictionless Project Creation and Joining (No Passwords or Unique Usernames required).
 // Theme: Catppuccin Mocha dark palette.
 
 import QtQuick 2.9
@@ -18,8 +18,8 @@ Rectangle {
     property string initialInviteCode:  ""
     property string initialDisplayName: ""
 
-    // Current tab mode: "register" or "join"
-    property string mode: "register"
+    // Current tab mode: "create" or "join"
+    property string mode: "create"
 
     // -----------------------------------------------------------------------
     // Signals
@@ -32,14 +32,14 @@ Rectangle {
     // -----------------------------------------------------------------------
     // Internal state
     // -----------------------------------------------------------------------
-    property string _statusText:  ""
-    property bool   _statusOk:    true
-    property bool   _loading:     false
-    property string _savedToken:  ""
+    property string _statusText:      ""
+    property bool   _statusOk:        true
+    property bool   _loading:         false
+    property string _savedToken:      ""
     property string _savedInviteCode: ""
-    property string _savedProjectId: ""
-    property string _savedProjectName: ""
-    property string _savedMyBranch: ""
+    property string _savedProjectId:  ""
+    property string _savedProjectName:""
+    property string _savedMyBranch:   ""
 
     // -----------------------------------------------------------------------
     // Appearance
@@ -52,12 +52,15 @@ Rectangle {
     // -----------------------------------------------------------------------
     Component.onCompleted: {
         var defaultUrl = root.initialServerUrl || "https://musescore-collab.onrender.com"
-        regUrlField.text     = defaultUrl
-        regUserField.text    = root.initialUsername
-        joinUrlField.text    = defaultUrl
-        joinUserField.text   = root.initialUsername
-        joinCodeField.text   = root.initialInviteCode
-        joinNameField.text   = root.initialDisplayName
+        serverUrlField.text     = defaultUrl
+        createNameField.text    = root.initialDisplayName || root.initialUsername
+        createProjectField.text = root.initialProject
+        joinNameField.text      = root.initialDisplayName || root.initialUsername
+        joinCodeField.text      = root.initialInviteCode
+
+        if (root.initialInviteCode && root.initialInviteCode.length > 0) {
+            root.mode = "join"
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -66,21 +69,42 @@ Rectangle {
     ColumnLayout {
         anchors {
             fill:    parent
-            margins: 16
+            margins: 18
         }
-        spacing: 14
+        spacing: 16
 
         // Title
+        RowLayout {
+            spacing: 8
+            Text {
+                text:  "🎵  MuseCollab"
+                font.pixelSize: 22
+                font.bold: true
+                color: "#cdd6f4"
+            }
+            Text {
+                text:  "v2.0"
+                font.pixelSize: 11
+                color: "#89b4fa"
+                Layout.alignment: Qt.AlignBaseline
+            }
+        }
+
+        // Subtitle instructions
         Text {
-            text:  "⚙  Settings"
-            font { pixelSize: 20; bold: true }
-            color: "#cdd6f4"
+            text:  root.mode === "create"
+                   ? "Start a new collaboration project and share the invite code with your friends."
+                   : "Enter your friend's invite code and your name to join their music project."
+            font.pixelSize: 12
+            color: "#a6adc8"
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         // ---- Tab switcher ----
         Rectangle {
             Layout.fillWidth: true
-            height: 38
+            height: 40
             color:  "#181825"
             radius: 6
 
@@ -89,18 +113,19 @@ Rectangle {
                 spacing: 0
 
                 Repeater {
-                    model: [{ label: "📝 Register", val: "register" },
-                            { label: "🔑 Join by Code", val: "join" }]
+                    model: [{ label: "🎼  Create Project", val: "create" },
+                            { label: "🔑  Join by Code", val: "join" }]
 
                     Button {
                         property string tabVal: modelData.val
                         text: modelData.label
                         Layout.fillWidth: true
-                        height: 38
+                        height: 40
                         contentItem: Text {
                             text:  parent.text
-                            color: root.mode === tabVal ? "#89b4fa" : "#585b70"
-                            font { pixelSize: 12; bold: root.mode === tabVal }
+                            color: root.mode === tabVal ? "#89b4fa" : "#6c7086"
+                            font.pixelSize: 13
+                            font.bold: root.mode === tabVal
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment:   Text.AlignVCenter
                         }
@@ -121,429 +146,242 @@ Rectangle {
             }
         }
 
-        // ---- Panel stack (register / join) ----
+        // ---- Mode Stack (Create / Join) ----
         StackLayout {
-            currentIndex: root.mode === "register" ? 0 : 1
+            currentIndex: root.mode === "create" ? 0 : 1
             Layout.fillWidth: true
 
             // ================================================================
-            // REGISTER TAB
+            // TAB 1: CREATE PROJECT
             // ================================================================
             ColumnLayout {
-                spacing: 12
+                spacing: 14
                 Layout.fillWidth: true
 
-                GridLayout {
-                    columns:     2
-                    columnSpacing: 10
-                    rowSpacing:  10
+                Text { text: "Your Name"; color: "#a6adc8"; font.pixelSize: 13; font.bold: true }
+                StyledField {
+                    id: createNameField
                     Layout.fillWidth: true
-
-                    Text { text: "Server URL"; color: "#a6adc8"; font.pixelSize: 13 }
-                    StyledField {
-                        id: regUrlField
-                        Layout.fillWidth: true
-                        placeholderText: "https://your-server.com"
-                    }
-
-                    Text { text: "Username"; color: "#a6adc8"; font.pixelSize: 13 }
-                    StyledField {
-                        id: regUserField
-                        Layout.fillWidth: true
-                        placeholderText: "your-username"
-                    }
-
-                    Text { text: "Password"; color: "#a6adc8"; font.pixelSize: 13 }
-                    StyledField {
-                        id: regPassField
-                        Layout.fillWidth: true
-                        placeholderText: "••••••••"
-                        echoMode: TextInput.Password
-                    }
-
-                    Text { text: "Project Name"; color: "#a6adc8"; font.pixelSize: 13 }
-                    StyledField {
-                        id: regProjectField
-                        Layout.fillWidth: true
-                        placeholderText: "my-score-project"
-                        text: root.initialProject
-                    }
+                    placeholderText: "e.g. Sam, Rahul, Alice"
                 }
 
-                // Register & Create Project button
+                Text { text: "Project Name"; color: "#a6adc8"; font.pixelSize: 13; font.bold: true }
+                StyledField {
+                    id: createProjectField
+                    Layout.fillWidth: true
+                    placeholderText: "e.g. String Quartet No. 1"
+                }
+
+                Item { height: 4 }
+
                 Button {
-                    id: regBtn
-                    text: root._loading && root.mode === "register" ? "Creating…" : "Register & Create Project"
+                    id: createBtn
+                    text: root._loading && root.mode === "create" ? "Creating Project…" : "🚀  Create Project & Get Invite Code"
                     enabled: !root._loading
                     Layout.fillWidth: true
+                    height: 42
                     contentItem: Text {
-                        text:  regBtn.text
+                        text:  createBtn.text
                         color: "#1e1e2e"
-                        font { pixelSize: 13; bold: true }
+                        font.pixelSize: 14
+                        font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment:   Text.AlignVCenter
                     }
                     background: Rectangle {
-                        radius: 5
-                        color:  regBtn.pressed  ? "#5296e4"
-                               : regBtn.hovered ? "#74aaee"
-                               :                  "#89b4fa"
+                        radius: 6
+                        color: createBtn.pressed ? "#5296e4" : createBtn.hovered ? "#74aaee" : "#89b4fa"
                     }
                     onClicked: {
-                        var url  = regUrlField.text.trim() || "https://musescore-collab.onrender.com"
-                        var user = regUserField.text.trim()
-                        var pass = regPassField.text
-                        var proj = regProjectField.text.trim()
-                        if (!user || !pass || !proj) {
-                            root._statusText = "Please fill in Username, Password, and Project Name."
-                            root._statusOk   = false
-                            return
-                        }
-                        root._loading    = true
-                        root._statusText = "Registering account…"
-                        root._statusOk   = true
-                        _doRegisterAndCreate(url, user, pass, proj)
-                    }
-                }
-
-                // Invite code result box (shown after project creation)
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: inviteResultCol.implicitHeight + 20
-                    color:  "#1a2a1a"
-                    radius: 6
-                    border.color: "#a6e3a1"
-                    border.width: 1
-                    visible: root._savedInviteCode.length > 0 && root.mode === "register"
-
-                    ColumnLayout {
-                        id: inviteResultCol
-                        anchors { fill: parent; margins: 10 }
-                        spacing: 6
-
-                        Text {
-                            text:  "Share this code with collaborators:"
-                            color: "#a6adc8"
-                            font.pixelSize: 11
-                        }
-                        RowLayout {
-                            spacing: 8
-                            Text {
-                                text:  root._savedInviteCode
-                                color: "#a6e3a1"
-                                font { pixelSize: 18; bold: true; family: "monospace" }
-                            }
-                            Button {
-                                text: "Copy"
-                                implicitWidth: 52; implicitHeight: 26
-                                contentItem: Text {
-                                    text: parent.text; color: "#1e1e2e"; font { pixelSize: 11; bold: true }
-                                    horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-                                }
-                                background: Rectangle { radius: 4; color: parent.pressed ? "#4dab64" : "#a6e3a1" }
-                                onClicked: {
-                                    // Copy to clipboard via TextEdit trick
-                                    clipHelper.text = root._savedInviteCode
-                                    clipHelper.selectAll()
-                                    clipHelper.copy()
-                                }
-                            }
-                        }
+                        var url  = serverUrlField.text.trim() || root.initialServerUrl
+                        var name = createNameField.text.trim()
+                        var proj = createProjectField.text.trim()
+                        if (!name) { root._statusText = "Please enter your name."; root._statusOk = false; return; }
+                        if (!proj) { root._statusText = "Please enter a project name."; root._statusOk = false; return; }
+                        _doCreateProject(url, name, proj)
                     }
                 }
             }
 
             // ================================================================
-            // JOIN TAB
+            // TAB 2: JOIN PROJECT
             // ================================================================
             ColumnLayout {
-                spacing: 12
+                spacing: 14
                 Layout.fillWidth: true
 
-                GridLayout {
-                    columns:     2
-                    columnSpacing: 10
-                    rowSpacing:  10
+                Text { text: "Your Name"; color: "#a6adc8"; font.pixelSize: 13; font.bold: true }
+                StyledField {
+                    id: joinNameField
                     Layout.fillWidth: true
-
-                    Text { text: "Server URL"; color: "#a6adc8"; font.pixelSize: 13 }
-                    StyledField {
-                        id: joinUrlField
-                        Layout.fillWidth: true
-                        placeholderText: "https://your-server.com"
-                    }
-
-                    Text { text: "Username"; color: "#a6adc8"; font.pixelSize: 13 }
-                    StyledField {
-                        id: joinUserField
-                        Layout.fillWidth: true
-                        placeholderText: "your-username"
-                    }
-
-                    Text { text: "Password"; color: "#a6adc8"; font.pixelSize: 13 }
-                    StyledField {
-                        id: joinPassField
-                        Layout.fillWidth: true
-                        placeholderText: "••••••••"
-                        echoMode: TextInput.Password
-                    }
-
-                    Text {
-                        text: "Your Name"
-                        color: "#a6adc8"
-                        font.pixelSize: 13
-                    }
-                    StyledField {
-                        id: joinNameField
-                        Layout.fillWidth: true
-                        placeholderText: "Alice"
-                    }
+                    placeholderText: "e.g. Rahul, David, Maya"
                 }
 
-                Text {
-                    text: "Your display name (shown to the project owner)"
-                    color: "#585b70"
-                    font.pixelSize: 11
-                    Layout.leftMargin: 2
-                }
-
-                // Invite code field — large, centered, monospace
-                Rectangle {
+                Text { text: "Project Invite Code (from the host)"; color: "#a6adc8"; font.pixelSize: 13; font.bold: true }
+                StyledField {
+                    id: joinCodeField
                     Layout.fillWidth: true
-                    height: 64
-                    color:  "#313244"
-                    radius: 6
-                    border.color: joinCodeField.activeFocus ? "#cba6f7" : "#45475a"
-                    border.width: 2
-
-                    TextField {
-                        id: joinCodeField
-                        anchors.centerIn: parent
-                        width: parent.width - 24
-                        placeholderText: "BACH-7X2K"
-                        placeholderTextColor: "#585b70"
-                        color: "#cba6f7"
-                        font { pixelSize: 22; bold: true; family: "monospace" }
-                        horizontalAlignment: Text.AlignHCenter
-                        background: Rectangle { color: "transparent" }
-                        // Auto-convert to uppercase
-                        onTextChanged: {
-                            var up = text.toUpperCase()
-                            if (up !== text) {
-                                var pos = cursorPosition
-                                text = up
-                                cursorPosition = pos
-                            }
-                        }
-                    }
+                    placeholderText: "e.g. BACH7X2K"
+                    font.capitalization: Font.AllUppercase
+                    font.pixelSize: 16
+                    font.bold: true
                 }
 
-                Text {
-                    text: "Enter the invite code shared by the project owner"
-                    color: "#585b70"
-                    font.pixelSize: 11
-                    Layout.alignment: Qt.AlignHCenter
-                }
+                Item { height: 4 }
 
-                // Register & Join button
                 Button {
                     id: joinBtn
-                    text: root._loading && root.mode === "join" ? "Joining…" : "Register & Join"
+                    text: root._loading && root.mode === "join" ? "Joining Project…" : "🎵  Join Project"
                     enabled: !root._loading
                     Layout.fillWidth: true
+                    height: 42
                     contentItem: Text {
                         text:  joinBtn.text
                         color: "#1e1e2e"
-                        font { pixelSize: 13; bold: true }
+                        font.pixelSize: 14
+                        font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment:   Text.AlignVCenter
                     }
                     background: Rectangle {
-                        radius: 5
-                        color:  joinBtn.pressed  ? "#9b6fe8"
-                               : joinBtn.hovered ? "#b590f3"
-                               :                   "#cba6f7"
+                        radius: 6
+                        color: joinBtn.pressed ? "#4dab64" : joinBtn.hovered ? "#6ec984" : "#a6e3a1"
                     }
                     onClicked: {
-                        var url  = joinUrlField.text.trim() || "https://musescore-collab.onrender.com"
-                        var user = joinUserField.text.trim()
-                        var pass = joinPassField.text
-                        var code = joinCodeField.text.trim()
-                        var dname = joinNameField.text.trim()
-                        if (!user || !pass || !code || !dname) {
-                            root._statusText = "Please fill in Your Name, Username, Password, and Invite Code."
-                            root._statusOk   = false
-                            return
-                        }
-                        root._loading    = true
-                        root._statusText = "Registering account…"
-                        root._statusOk   = true
-                        _doRegisterAndJoin(url, user, pass, code, dname)
-                    }
-                }
-
-                // Success result after join
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: joinSuccessText.implicitHeight + 20
-                    color:  "#1a2a1a"
-                    radius: 6
-                    border.color: "#a6e3a1"
-                    border.width: 1
-                    visible: root._savedMyBranch.length > 0 && root.mode === "join"
-
-                    Text {
-                        id: joinSuccessText
-                        anchors { fill: parent; margins: 10 }
-                        text:  "✓ Joined project! Your branch: " + root._savedMyBranch
-                        color: "#a6e3a1"
-                        font.pixelSize: 13
-                        wrapMode: Text.Wrap
+                        var url  = serverUrlField.text.trim() || root.initialServerUrl
+                        var name = joinNameField.text.trim()
+                        var code = joinCodeField.text.trim().toUpperCase()
+                        if (!name) { root._statusText = "Please enter your name."; root._statusOk = false; return; }
+                        if (!code) { root._statusText = "Please enter the invite code."; root._statusOk = false; return; }
+                        _doJoinProject(url, name, code)
                     }
                 }
             }
         }
 
-        // ---- Status label ----
+        // Status banner
         Rectangle {
             Layout.fillWidth: true
-            height:  statusLabel.implicitHeight + 12
-            color:   root._statusOk ? "#1a2a1a" : "#2a1a1a"
-            radius:  4
+            height: statusLabel.implicitHeight + 14
+            color:  root._statusOk ? "#1a2e22" : "#2e1a22"
+            radius: 6
             visible: root._statusText.length > 0
 
             Text {
-                id:       statusLabel
-                anchors { fill: parent; margins: 6 }
-                text:     root._statusText
-                color:    root._statusOk ? "#a6e3a1" : "#f38ba8"
+                id: statusLabel
+                anchors.centerIn: parent
+                width: parent.width - 16
+                text: root._statusText
+                color: root._statusOk ? "#a6e3a1" : "#f38ba8"
                 font.pixelSize: 12
+                font.bold: true
                 wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
             }
         }
 
-        // Spacer
         Item { Layout.fillHeight: true }
 
-        // Version note
-        Text {
-            text:  "MuseCollab v2.0.0"
-            color: "#585b70"
-            font.pixelSize: 11
-            Layout.alignment: Qt.AlignHCenter
+        // Subtle Server URL row at bottom
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Text {
+                text: "Cloud Server:"
+                color: "#585b70"
+                font.pixelSize: 11
+            }
+
+            StyledField {
+                id: serverUrlField
+                Layout.fillWidth: true
+                font.pixelSize: 11
+                text: root.initialServerUrl || "https://musescore-collab.onrender.com"
+            }
         }
     }
 
-    // Hidden TextEdit for clipboard copy
-    TextEdit {
-        id: clipHelper
-        visible: false
-        text: ""
+    // -----------------------------------------------------------------------
+    // Handlers
+    // -----------------------------------------------------------------------
+
+    function _doCreateProject(url, name, proj) {
+        root._loading = true
+        root._statusText = "Creating project…"
+        root._statusOk = true
+
+        _performXhr("POST", url.replace(/\/$/, "") + "/api/auth/create-project",
+            { "Content-Type": "application/json" },
+            JSON.stringify({ displayName: name, projectName: proj }),
+            function(err, data) {
+                root._loading = false
+                if (err) {
+                    root._statusText = "✗ Failed: " + err
+                    root._statusOk = false
+                    return
+                }
+
+                var res = (data && data.data) ? data.data : data
+                var tok = (res && res.token) || (data && data.token) || ""
+                var pid = (res && res.project) ? res.project.id : ""
+                var pname = (res && res.project) ? res.project.name : proj
+                var icode = (res && res.project) ? res.project.inviteCode : ""
+                var branch = (res && res.branch) || "main"
+
+                root._savedToken = tok
+                root._savedProjectId = pid
+                root._savedProjectName = pname
+                root._savedInviteCode = icode
+                root._savedMyBranch = branch
+
+                root._statusText = "✓ Project created! Share code: " + icode
+                root._statusOk = true
+
+                root.settingsSaved(url, name, tok, pid, pname, icode, branch, name)
+            }
+        )
     }
 
-    // -----------------------------------------------------------------------
-    // Register + Create Project flow
-    // -----------------------------------------------------------------------
-    function _doRegisterAndCreate(url, user, pass, projName) {
-        _performXhr("POST", url.replace(/\/$/, "") + "/api/auth/register",
-            { "Content-Type": "application/json" },
-            JSON.stringify({ username: user, password: pass }),
-            function(err, data) {
-                if (err) {
-                    root._loading    = false
-                    root._statusText = "✗ Registration failed: " + err
-                    root._statusOk   = false
-                    return
-                }
-                var tok = (data && data.token) || (data && data.data && data.data.token) || ""
-                if (!tok) {
-                    root._loading    = false
-                    root._statusText = "✗ No token returned from server."
-                    root._statusOk   = false
-                    return
-                }
-                root._savedToken = tok
-                root._statusText = "Creating project…"
+    function _doJoinProject(url, name, code) {
+        root._loading = true
+        root._statusText = "Joining project…"
+        root._statusOk = true
 
-                _performXhr("POST", url.replace(/\/$/, "") + "/api/projects",
-                    { "Content-Type": "application/json", "Authorization": "Bearer " + tok },
-                    JSON.stringify({ name: projName }),
-                    function(err2, data2) {
-                        root._loading = false
-                        if (err2) {
-                            root._statusText = "✗ Project creation failed: " + err2
-                            root._statusOk   = false
-                            return
-                        }
-                        var payload = (data2 && data2.data) ? data2.data : data2
-                        var pid    = (payload && payload.project ? payload.project.id : (payload && payload.projectId)) || ""
-                        var pname  = (payload && payload.project ? payload.project.name : (payload && payload.name)) || projName
-                        var icode  = (payload && payload.project ? payload.project.inviteCode : (payload && payload.inviteCode)) || ""
-                        root._savedProjectId   = pid
-                        root._savedProjectName = pname
-                        root._savedInviteCode  = icode
-                        root._statusText = "✓ Project created! Invite code: " + icode
-                        root._statusOk   = true
-                        root.settingsSaved(url, user, tok, pid, pname, icode, "main", user)
-                    }
-                )
+        _performXhr("POST", url.replace(/\/$/, "") + "/api/auth/join-project",
+            { "Content-Type": "application/json" },
+            JSON.stringify({ displayName: name, inviteCode: code }),
+            function(err, data) {
+                root._loading = false
+                if (err) {
+                    root._statusText = "✗ Failed: " + err
+                    root._statusOk = false
+                    return
+                }
+
+                var res = (data && data.data) ? data.data : data
+                var tok = (res && res.token) || (data && data.token) || ""
+                var pid = (res && res.project) ? res.project.id : ""
+                var pname = (res && res.project) ? res.project.name : "Project"
+                var icode = (res && res.project) ? res.project.inviteCode : code
+                var branch = (res && res.branch) || (name + "/main")
+
+                root._savedToken = tok
+                root._savedProjectId = pid
+                root._savedProjectName = pname
+                root._savedInviteCode = icode
+                root._savedMyBranch = branch
+
+                root._statusText = "✓ Joined " + pname + "! Branch: " + branch
+                root._statusOk = true
+
+                root.settingsSaved(url, name, tok, pid, pname, icode, branch, name)
             }
         )
     }
 
     // -----------------------------------------------------------------------
-    // Register + Join Project flow
-    // -----------------------------------------------------------------------
-    function _doRegisterAndJoin(url, user, pass, code, displayName) {
-        _performXhr("POST", url.replace(/\/$/, "") + "/api/auth/register",
-            { "Content-Type": "application/json" },
-            JSON.stringify({ username: user, password: pass }),
-            function(err, data) {
-                if (err) {
-                    root._loading    = false
-                    root._statusText = "✗ Registration failed: " + err
-                    root._statusOk   = false
-                    return
-                }
-                var tok = (data && data.token) || (data && data.data && data.data.token) || ""
-                if (!tok) {
-                    root._loading    = false
-                    root._statusText = "✗ No token returned from server."
-                    root._statusOk   = false
-                    return
-                }
-                root._savedToken = tok
-                root._statusText = "Joining project…"
-
-                _performXhr("POST", url.replace(/\/$/, "") + "/api/auth/join",
-                    { "Content-Type": "application/json", "Authorization": "Bearer " + tok },
-                    JSON.stringify({ inviteCode: code, displayName: displayName }),
-                    function(err2, data2) {
-                        root._loading = false
-                        if (err2) {
-                            root._statusText = "✗ Join failed: " + err2
-                            root._statusOk   = false
-                            return
-                        }
-                        var payload = (data2 && data2.data) ? data2.data : data2
-                        var pid    = (payload && payload.project ? payload.project.id : (payload && payload.projectId)) || ""
-                        var pname  = (payload && payload.project ? payload.project.name : (payload && payload.projectName)) || ""
-                        var branch = (payload && payload.branch ? payload.branch.name : (payload && payload.myBranch)) || (user + "/main")
-                        root._savedProjectId   = pid
-                        root._savedProjectName = pname
-                        root._savedInviteCode  = code
-                        root._savedMyBranch    = branch
-                        root._statusText = "✓ Joined! Your branch: " + branch
-                        root._statusOk   = true
-                        root.settingsSaved(url, user, tok, pid, pname, code, branch, displayName)
-                    }
-                )
-            }
-        )
-    }
-
-    // -----------------------------------------------------------------------
-    // Low-level XHR (no dependency on api.js namespace in this file)
+    // Low-level XHR
     // -----------------------------------------------------------------------
     function _performXhr(method, url, headers, body, cb) {
         var xhr = new XMLHttpRequest()
@@ -552,7 +390,7 @@ Rectangle {
         for (var i = 0; i < hkeys.length; i++) {
             xhr.setRequestHeader(hkeys[i], headers[hkeys[i]])
         }
-        xhr.timeout = 20000
+        xhr.timeout = 25000
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             var parsed = null
@@ -565,15 +403,8 @@ Rectangle {
                 cb(msg, null)
             }
         }
-        xhr.onerror   = function() { cb("Network error", null) }
-        xhr.ontimeout = function() { cb("Timeout", null) }
+        xhr.onerror   = function() { cb("Could not connect to server. Check connection.", null) }
+        xhr.ontimeout = function() { cb("Server response timed out. Try again.", null) }
         if (body) { xhr.send(body) } else { xhr.send() }
-    }
-
-    // -----------------------------------------------------------------------
-    // Public convenience: pre-populate token if already known
-    // -----------------------------------------------------------------------
-    function setToken(token) {
-        root._savedToken = token
     }
 }

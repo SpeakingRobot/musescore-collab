@@ -27,10 +27,13 @@ async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      username TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
+      username TEXT NOT NULL,
+      password_hash TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_username_key;
+    ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 
     CREATE TABLE IF NOT EXISTS projects (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -96,10 +99,10 @@ async function getUserByUsername(username) {
   return rows[0] || null;
 }
 
-async function createUser(username, passwordHash) {
+async function createUser(username, passwordHash = '') {
   const { rows } = await pool.query(
     'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username, created_at',
-    [username, passwordHash]
+    [username, passwordHash || '']
   );
   return rows[0];
 }

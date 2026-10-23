@@ -39,6 +39,168 @@ function authenticateToken(req, res, next) {
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
+function generateInviteCode() {
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const alnum = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += letters[Math.floor(Math.random() * letters.length)];
+  for (let i = 0; i < 4; i++) code += alnum[Math.floor(Math.random() * alnum.length)];
+  return code;
+}
+
+/**
+ * POST /create-project
+ * Body: { displayName, projectName }
+ * Frictionless: No passwords or unique username requirements!
+ * Automatically creates user, project with invite code, main branch, and owner membership.
+ */
+router.post('/create-project', async (req, res) => {
+  try {
+    const displayName = (req.body.displayName || req.body.username || '').trim();
+    const projectName = (req.body.projectName || req.body.name || '').trim();
+
+    if (!displayName) {
+      return res.status(400).json({ success: false, error: 'Your name is required.' });
+    }
+    if (!projectName) {
+      return res.status(400).json({ success: false, error: 'Project name is required.' });
+    }
+
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({ success: false, error: 'Database is not connected.' });
+    }
+
+    const internalUsername = `${displayName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'musician'}_${Math.random().toString(36).substring(2, 8)}`;
+    const user = await db.createUser(internalUsername, '');
+
+    const token = jwt.sign(
+      { userId: user.id, username: displayName, displayName: displayName },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    let inviteCode;
+    for (let attempts = 0; attempts < 10; attempts++) {
+      const candidate = generateInviteCode();
+      const existing = await db.getProjectByInviteCode(candidate);
+      if (!existing) { inviteCode = candidate; break; }
+    }
+    if (!inviteCode) inviteCode = generateInviteCode();
+
+    const project = await db.createProject(projectName, user.id, inviteCode);
+    const branch = await db.createBranch(project.id, 'main', null);
+    await db.addProjectMember(project.id, user.id, 'owner', 'main', displayName);
+
+    const resultData = {
+      token,
+      project: {
+        id: project.id,
+        name: project.name,
+        inviteCode: project.invite_code,
+      },
+      branch: 'main',
+      displayName: displayName,
+      user: { id: user.id, username: displayName },
+    };
+
+    return res.status(201).json({
+      success: true,
+      token,
+      ...resultData,
+      data: resultData,
+    });
+  } catch (err) {
+    console.error('POST /create-project error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to create project: ' + (err.message || err) });
+  }
+});
+
+/**
+ * POST /join-project
+ * Body: { displayName, inviteCode }
+ * Frictionless: No passwords!
+ * Automatically creates user, personal branch `displayName/main`, forks from main, and joins project.
+ */
+router.post('/join-project', async (req, res) => {
+  try {
+    const displayName = (req.body.displayName || req.body.username || '').trim();
+    const inviteCode = (req.body.inviteCode || req.body.code || '').trim().toUpperCase();
+
+    if (!displayName) {
+      return res.status(400).json({ success: false, error: 'Your name is required.' });
+    }
+    if (!inviteCode) {
+      return res.status(400).json({ success: false, error: 'Invite code is required.' });
+    }
+
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({ success: false, error: 'Database is not connected.' });
+    }
+
+    const project = await db.getProjectByInviteCode(inviteCode);
+    if (!project) {
+      return res.status(404).json({ success: false, error: 'Project not found with code: ' + inviteCode });
+    }
+
+    const internalUsername = `${displayName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'musician'}_${Math.random().toString(36).substring(2, 8)}`;
+    const user = await db.createUser(internalUsername, '');
+
+    const token = jwt.sign(
+      { userId: user.id, username: displayName, displayName: displayName },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    const safeName = displayName.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    let branchName = `${safeName}/main`;
+    let branchIndex = 1;
+    while (await db.getBranchByName(project.id, branchName)) {
+      branchIndex++;
+      branchName = `${safeName}-${branchIndex}/main`;
+    }
+
+    const branch = await db.createBranch(project.id, branchName, 'main');
+
+    const mainBranch = await db.getBranchByName(project.id, 'main');
+    if (mainBranch) {
+      const latestMainCommit = await db.getLatestCommit(mainBranch.id);
+      if (latestMainCommit) {
+        await db.createCommit(
+          branch.id,
+          project.id,
+          user.id,
+          'Branch initialised from main',
+          latestMainCommit.score_data
+        );
+      }
+    }
+
+    await db.addProjectMember(project.id, user.id, 'member', branchName, displayName);
+
+    const resultData = {
+      token,
+      project: {
+        id: project.id,
+        name: project.name,
+        inviteCode: project.invite_code,
+      },
+      branch: branchName,
+      displayName: displayName,
+      user: { id: user.id, username: displayName },
+    };
+
+    return res.status(200).json({
+      success: true,
+      token,
+      ...resultData,
+      data: resultData,
+    });
+  } catch (err) {
+    console.error('POST /join-project error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to join project: ' + (err.message || err) });
+  }
+});
+
 /**
  * POST /register
  * Body: { username, password }
